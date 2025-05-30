@@ -14,7 +14,7 @@ function App() {
     const callAPI = async (userQuestion) => {
         // Thay thế bằng API thực tế của bạn
         try {
-            const response = await axios.post('http://127.0.0.1:8000/qa', {
+            const response = await axios.post('https://hoanglvuitmlawbot-production.up.railway.app/qa', {
                 question: userQuestion
             }, {
                 headers: {
