@@ -1,0 +1,9 @@
+pymupdf
+langchain_core
+langgraph
+dotenv
+langchain_chroma
+langchain_google_genai
+fastapi
+langchain-community
+langchain-text-splitters
