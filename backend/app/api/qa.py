@@ -6,7 +6,7 @@ router = APIRouter()
 
 @router.get("/") 
 def home(): 
-    return "Hello world"
+    return "I am hoanglv, hello world"
 
 class Question(BaseModel):
     question: str
