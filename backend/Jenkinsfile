@@ -9,14 +9,21 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout([
+                    $class: 'GitSCM',
+                    branches: scm.branches,
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [
+                        [$class: 'CloneOption', depth: 1, noTags: true, shallow: true]
+                    ],
+                    userRemoteConfigs: scm.userRemoteConfigs
+                ])
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Vào thư mục backend để build
                     dir('backend') {
                         dockerImage = docker.build("${DOCKER_IMAGE}")
                     }
