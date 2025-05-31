@@ -6,7 +6,7 @@ app = FastAPI(title="AI Inference API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Cổng Vite dev server
+    allow_origins=["https://vn-law-bot-hoanglvuits-projects.vercel.app"],  # Cho phép mọi domain và cổng
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
