@@ -14,7 +14,7 @@ function App() {
     const callAPI = async (userQuestion) => {
         // Thay thế bằng API thực tế của bạn
         try {
-            const response = await axios.post('31.97.51.25:2824/qa', {
+            const response = await axios.post('http://31.97.51.25:2824/qa', {
                 question: userQuestion
             }, {
                 headers: {
