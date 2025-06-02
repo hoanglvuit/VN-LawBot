@@ -6,7 +6,7 @@ app = FastAPI(title="AI Inference API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://vn-law-bot-hoanglvuits-projects.vercel.app"],  
+    allow_origins=["https://vn-law-bot-hoanglvuits"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
