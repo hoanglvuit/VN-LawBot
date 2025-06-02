@@ -51,19 +51,19 @@ pipeline {
                     string(credentialsId: 'gemini-api-key', variable: 'GEMINI_KEY')
                 ]) {
                     sshagent([VPS_CREDENTIALS_ID]) {
-                        sh """
-                        ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} << 'EOF'
-                            docker pull ${DOCKER_IMAGE}:latest
-                            docker stop vnlawbot_c || true
-                            docker rm vnlawbot_c || true
-                            docker run -d \\
-                                -p 2824:8000 \\
-                                --name vnlawbot_c \\
-                                -e LANGSMITH_API_KEY=${LANGSMITH_KEY} \\
-                                -e GEMINI_API_KEY=${GEMINI_KEY} \\
-                                ${DOCKER_IMAGE}:latest
-                        EOF
-                        """
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ${VPS_USER}@${VPS_HOST} <<EOF
+                docker pull ${DOCKER_IMAGE}:latest
+                docker stop vnlawbot_c || true
+                docker rm vnlawbot_c || true
+                docker run -d \\
+                    -p 2824:8000 \\
+                    --name vnlawbot_c \\
+                    -e LANGSMITH_API_KEY=${LANGSMITH_KEY} \\
+                    -e GEMINI_API_KEY=${GEMINI_KEY} \\
+                    ${DOCKER_IMAGE}:latest
+                EOF
+                """
                     }
                 }
             }
