@@ -4,9 +4,9 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'hoanglvuitm/vnlawbot'
         DOCKER_CREDENTIALS_ID = 'docker-hub'
-        VPS_CREDENTIALS_ID = 'vps_hoanglv'
-        VPS_HOST = '31.97.51.25'  // Thay bằng IP thực tế của VPS
-        VPS_USER = 'root'             // Thay bằng username thực tế trên VPS
+        VPS_CREDENTIALS_ID = 'vps_hoanglv'        // ID SSH key trong Jenkins
+        VPS_HOST = '31.97.51.25'      // ← sửa địa chỉ VPS
+        VPS_USER = 'root'                 // ← sửa user đăng nhập VPS
     }
 
     stages {
@@ -44,28 +44,29 @@ pipeline {
             }
         }
 
-stage('Deploy on VPS') {
-    steps {
-        withCredentials([
-            string(credentialsId: 'langsmith-api-key', variable: 'LANGSMITH_KEY'),
-            string(credentialsId: 'gemini-api-key', variable: 'GEMINI_KEY')
-        ]) {
-            sshagent([VPS_CREDENTIALS_ID]) {
-                sh """
-                ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} << EOF
-                    docker pull ${DOCKER_IMAGE}:latest
-                    docker stop vnlawbot_c || true
-                    docker rm vnlawbot_c || true
-                    docker run -d \\
-                        -p 2824:8000 \\
-                        --name vnlawbot_c \\
-                        -e LANGSMITH_API_KEY=$LANGSMITH_KEY \\
-                        -e GEMINI_API_KEY=$GEMINI_KEY \\
-                        ${DOCKER_IMAGE}:latest
-                EOF
-                """
+        stage('Deploy on VPS') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'langsmith-api-key', variable: 'LANGSMITH_KEY'),
+                    string(credentialsId: 'gemini-api-key', variable: 'GEMINI_KEY')
+                ]) {
+                    sshagent([VPS_CREDENTIALS_ID]) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} << 'EOF'
+                            docker pull ${DOCKER_IMAGE}:latest
+                            docker stop vnlawbot_c || true
+                            docker rm vnlawbot_c || true
+                            docker run -d \\
+                                -p 2824:8000 \\
+                                --name vnlawbot_c \\
+                                -e LANGSMITH_API_KEY=${LANGSMITH_KEY} \\
+                                -e GEMINI_API_KEY=${GEMINI_KEY} \\
+                                ${DOCKER_IMAGE}:latest
+                        EOF
+                        """
+                    }
+                }
             }
         }
     }
-}
 }
