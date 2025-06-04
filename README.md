@@ -4,6 +4,9 @@ Chatbot hỏi đáp về luật hình sự tại Việt Nam sử dụng RAG (Ret
 
 ## 🚀 Demo
 
+![Demo](demo/demo.png)
+
+
 - **Frontend**: [https://vn-law-bot-hoanglvuits-projects.vercel.app](https://vn-law-bot-hoanglvuits-projects.vercel.app)
 - **Backend API**: [https://vnlawbot.hoanglvuit.id.vn](https://vnlawbot.hoanglvuit.id.vn)
 
