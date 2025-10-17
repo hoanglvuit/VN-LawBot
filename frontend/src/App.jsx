@@ -13,7 +13,7 @@ function App() {
     const callAPI = async (userQuestion) => {
   try {
     const response = await axios.post(
-      "http://34.201.144.1:2824/qa",
+      "https://vnlawbot.hoanglvuit.id.vn/qa",
       { question: userQuestion },
       { headers: { "Content-Type": "application/json" } }
     );
