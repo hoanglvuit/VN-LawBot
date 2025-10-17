@@ -1,13 +1,13 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_IMAGE = 'hoanglvuitm/vnlawbot'
-        DOCKER_CREDENTIALS_ID = 'docker-hub'
-        VPS_CREDENTIALS_ID = 'vps_hoanglv'        // ID SSH key trong Jenkins
-        VPS_HOST = '31.97.51.25'      // ← sửa địa chỉ VPS
-        VPS_USER = 'root'                 // ← sửa user đăng nhập VPS
-    }
+environment {
+    DOCKER_IMAGE = 'hoanglvuitm/vnlawbot'
+    DOCKER_CREDENTIALS_ID = 'docker-hub'
+    VPS_CREDENTIALS_ID = 'ec2_ssh_key'     // Đã tạo ở bước 3
+    VPS_HOST = '3.123.456.789'             // IP EC2
+    VPS_USER = 'ubuntu'
+}
 
     stages {
         stage('Checkout') {
