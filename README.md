@@ -125,58 +125,58 @@ User → Frontend (Vercel HTTPS) → Backend (VPS + Nginx SSL) →
 RAG Model (LangChain + Gemini) → Vietnam Criminal Law Database
 ```
 
-## 🗓️ Update 17-10-2025 — Triển khai VN LawBot Backend thủ công trên AWS EC2
+# 🧩 VN-LawBot Backend Deployment Guide (EC2 + Docker + Nginx + SSL)
 
-Vì Jenkins gặp sự cố nên lần này tiến hành **triển khai thủ công (manual deploy)** bằng Docker trên **AWS EC2**.
-
----
-
-### 🚀 1. Tạo EC2 instance
-
-1. **Loại máy:** `t2.micro` (Free tier)
-2. **Hệ điều hành:** Ubuntu (22.04 hoặc mới hơn)
-3. **Tạo Key Pair:** để SSH vào máy, ví dụ `lawbot.pem`
-4. **Security Group:**
-   - Mở inbound rule cho các port:
-     - `80` (HTTP)
-     - `443` (HTTPS)
-     - `2824` (TCP – backend app)
+**Cập nhật:** 17-10-2025  
 
 ---
 
-### 🔑 2. SSH vào EC2
+## 1️⃣ Khởi tạo EC2 instance
+
+- **Loại máy:** `t2.micro` (free tier)
+- **OS:** Ubuntu 22.04 (hoặc mới hơn)
+- **Key Pair:** tạo `lawbot.pem` để SSH
+- **Security Group:** mở inbound rules:
+  - TCP `80` (HTTP)
+  - TCP `443` (HTTPS)
+  - TCP `2824` (Backend service)
+
+---
+
+## 2️⃣ Cài Docker và Git
+
+SSH vào máy:
+
 ```bash
-ssh -i lawbot.pem ubuntu@
+ssh -i lawbot.pem ubuntu@<EC2_PUBLIC_IP>
 ```
 
----
+Cài Docker:
 
-### 🐳 3. Cài đặt Docker
 ```bash
 sudo apt update -y
-sudo apt install docker.io -y
+sudo apt install docker.io git -y
 sudo systemctl enable docker
 sudo systemctl start docker
 ```
 
 ---
 
-### 🧠 4. Clone source code & build Docker image
+## 3️⃣ Clone source & Build backend (FastAPI)
+
 ```bash
 git clone https://github.com/hoanglvuit/VN-LawBot.git
 cd ~/VN-LawBot/backend
 ```
 
 Build image:
+
 ```bash
 docker build -t hoanglvuitm/vnlawbot:latest .
 ```
 
----
+Chạy backend container (kèm ENV key):
 
-### ⚙️ 5. Chạy backend container
-
-Dùng các biến môi trường (`-e`) để truyền key:
 ```bash
 docker run -d \
   -p 2824:8000 \
@@ -187,64 +187,78 @@ docker run -d \
 ```
 
 Kiểm tra log:
+
 ```bash
 docker logs -f vnlawbot
 ```
 
-Nếu thấy `Uvicorn running on http://0.0.0.0:8000` là backend đã chạy thành công ✅
+Nếu thấy:
+
+```
+Uvicorn running on http://0.0.0.0:8000
+```
+
+→ Backend đã chạy thành công ✅
 
 ---
 
-### 🌐 6. Cấu hình domain
+## 4️⃣ Cấp chứng chỉ SSL (chỉ cần làm 1 lần)
 
-- Trỏ subdomain `vnlawbot.hoanglvuit.id.vn` (qua access.pavietnam.vn) về Public IP của EC2.
-- Dùng dnschecker.org để xác minh.
+Trỏ subdomain `vnlawbot.hoanglvuit.id.vn` về IP public của EC2.
 
----
+Kiểm tra DNS qua [dnschecker.org](https://dnschecker.org).
 
-### 🔒 7. Cài đặt SSL bằng Certbot
+Sau đó:
 
-Certbot chỉ cần chạy một lần để lấy chứng chỉ ban đầu.
 ```bash
-sudo apt install certbot -y
-sudo mkdir -p ~/certbot
-sudo certbot certonly --webroot -w ~/certbot -d vnlawbot.hoanglvuit.id.vn
+cd ~
+mkdir -p certbot
+docker run -it --rm \
+  -v $(pwd)/certbot:/etc/letsencrypt \
+  -p 80:80 \
+  certbot/certbot certonly --standalone \
+  -d vnlawbot.hoanglvuit.id.vn
 ```
 
-Sau khi thành công, chứng chỉ sẽ nằm tại:
+Khi thấy:
+
 ```
-/etc/letsencrypt/live/vnlawbot.hoanglvuit.id.vn/
+Successfully received certificate.
+Certificate is saved at: /etc/letsencrypt/live/vnlawbot.hoanglvuit.id.vn/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/vnlawbot.hoanglvuit.id.vn/privkey.pem
 ```
+
+→ SSL ok 🎉
 
 ---
 
-### 🧱 8. Cấu hình Nginx reverse proxy
+## 5️⃣ Cấu hình Nginx Reverse Proxy
 
-Tạo thư mục và file config:
+Tạo thư mục:
+
 ```bash
 mkdir -p ~/nginx/conf.d
 cd ~/nginx
-sudo nano conf.d/default.conf
 ```
 
-Nội dung file:
+### 🔧 File: `~/nginx/conf.d/default.conf`
+
 ```nginx
+# Redirect HTTP → HTTPS
 server {
     listen 80;
     server_name vnlawbot.hoanglvuit.id.vn;
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-    location / {
-        return 301 https://$host$request_uri;
-    }
+    return 301 https://$host$request_uri;
 }
 
+# HTTPS Config
 server {
     listen 443 ssl;
     server_name vnlawbot.hoanglvuit.id.vn;
+
     ssl_certificate /etc/letsencrypt/live/vnlawbot.hoanglvuit.id.vn/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/vnlawbot.hoanglvuit.id.vn/privkey.pem;
+
     location / {
         proxy_pass http://vnlawbot:8000;
         proxy_set_header Host $host;
@@ -255,53 +269,71 @@ server {
 
 ---
 
-### 🌍 9. Chạy Nginx container
-```bash
-docker run -d \
-  --name nginx_proxy \
-  --network bridge \
-  -p 80:80 -p 443:443 \
-  -v ~/nginx/conf.d:/etc/nginx/conf.d \
-  -v ~/certbot:/var/www/certbot \
-  -v /etc/letsencrypt:/etc/letsencrypt:ro \
-  nginx:latest
+## 6️⃣ Sử dụng docker-compose để quản lý toàn bộ
+
+### 🧱 File: `~/nginx/docker-compose.yml`
+
+```yaml
+version: '3.8'
+
+services:
+  vnlawbot:
+    image: hoanglvuitm/vnlawbot:latest
+    container_name: vnlawbot
+    ports:
+      - "2824:8000"
+    environment:
+      - LANGSMITH_API_KEY=lsv2_...
+      - GEMINI_API_KEY=AIza...
+    restart: always
+
+  nginx_proxy:
+    image: nginx:latest
+    container_name: nginx_proxy
+    depends_on:
+      - vnlawbot
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./conf.d:/etc/nginx/conf.d
+      - /home/ubuntu/certbot:/etc/letsencrypt
+    restart: always
 ```
 
-Kiểm tra log:
-```bash
-docker logs -f nginx_proxy
-```
+Chạy tất cả:
 
-Nếu không có lỗi "cannot load certificate" thì SSL đã hoạt động.
+```bash
+cd ~/nginx
+sudo docker compose up -d
+```
 
 ---
 
-### ✅ 10. Kiểm tra cuối
+## 7️⃣ Kiểm tra
 
 Truy cập:
-```
-https://vnlawbot.hoanglvuit.id.vn
+
+👉 **https://vnlawbot.hoanglvuit.id.vn**
+
+Nếu phản hồi `200 OK` → thành công ✅
+
+Kiểm tra container:
+
+```bash
+docker ps
 ```
 
-Nếu truy cập thành công → setup hoàn chỉnh 🎉
+Kết quả mong muốn:
+
+```
+nginx_proxy   nginx:latest
+vnlawbot      hoanglvuitm/vnlawbot:latest
+```
 
 ---
 
-### 🔁 11. Gia hạn chứng chỉ (tự động & miễn phí)
 
-Certbot của Let's Encrypt là 100% free.
-
-Bạn có thể kiểm tra gia hạn thủ công:
-```bash
-sudo certbot renew --dry-run
-```
-
-Nếu thấy:
-```
-Congratulations, all renewals succeeded
-```
-
-→ chứng chỉ có thể tự động gia hạn được ✅
 
 
 *Dự án được phát triển nhằm mục đích học tập và hỗ trợ tra cứu luật hình sự Việt Nam.*
