@@ -10,13 +10,6 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/hoanglvuit/VN-LawBot.git'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
