@@ -16,7 +16,7 @@ Chatbot hỏi đáp về luật hình sự tại Việt Nam sử dụng RAG (Ret
 - **Framework**: LangChain
 - **Tài liệu**: Bộ luật hình sự Việt Nam 2015
 - **Embedding Model**: gemini-embedding-exp-03-07
-- **LLM Model**: gemini-2.0-flash
+- **LLM Model**: gemini-2.0-flash. Lưu ý cần set lại rate limit & quota cho api_key. 
 
 ### Technology Stack
 - **Backend**: FastAPI
