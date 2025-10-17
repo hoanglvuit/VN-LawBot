@@ -10,25 +10,34 @@ function App() {
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Hàm giả lập gọi API
     const callAPI = async (userQuestion) => {
-        // Thay thế bằng API thực tế của bạn
-        try {
-            const response = await axios.post('http://34.201.144.1:2824/qa', {
-                question: userQuestion
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+  try {
+    const response = await axios.post(
+      "http://34.201.144.1:2824/qa",
+      { question: userQuestion },
+      { headers: { "Content-Type": "application/json" } }
+    );
 
-            return response.data.answer;
-
-        } catch (error) {
-            console.error('Error calling API:', error);
-            return "Xin lỗi, có lỗi xảy ra khi xử lý câu hỏi của bạn.";
-        }
-    };
+    return response.data.answer;
+  } catch (error) {
+    if (error.response) {
+      // Server phản hồi lỗi (status code != 2xx)
+      console.error(
+        "API response error:",
+        error.response.status,
+        error.response.statusText,
+        error.response.data
+      );
+    } else if (error.request) {
+      // Không có phản hồi từ server
+      console.error("No response received from API:", error.request);
+    } else {
+      // Lỗi thiết lập request
+      console.error("Error setting up API request:", error.message);
+    }
+    return "Xin lỗi, có lỗi xảy ra khi xử lý câu hỏi của bạn.";
+  }
+};
 
     const handleSendMessage = async () => {
         if (!question.trim()) return;
