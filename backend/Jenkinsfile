@@ -1,20 +1,21 @@
 pipeline {
     agent any
 
-environment {
-    DOCKER_IMAGE = 'hoanglvuitm/vnlawbot'
-    DOCKER_CREDENTIALS_ID = 'docker-hub'
-    VPS_CREDENTIALS_ID = 'ec2_ssh_key'     // Đã tạo ở bước 3
-    VPS_HOST = '34.201.144.1'             // IP EC2
-    VPS_USER = 'ubuntu'
-}
-
-	stage('Checkout') {
-    steps {
-        git branch: 'main',
-            url: 'https://github.com/hoanglvuit/VN-LawBot.git'
+    environment {
+        DOCKER_IMAGE = 'hoanglvuitm/vnlawbot'
+        DOCKER_CREDENTIALS_ID = 'docker-hub'
+        VPS_CREDENTIALS_ID = 'ec2_ssh_key'
+        VPS_HOST = '34.201.144.1'
+        VPS_USER = 'ubuntu'
     }
-}
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/hoanglvuit/VN-LawBot.git'
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
@@ -36,29 +37,29 @@ environment {
             }
         }
 
-stage('Deploy on VPS') {
-    steps {
-        withCredentials([
-            string(credentialsId: 'langsmith-api-key', variable: 'LANGSMITH_KEY'),
-            string(credentialsId: 'gemini-api-key', variable: 'GEMINI_KEY')
-        ]) {
-            sshagent([VPS_CREDENTIALS_ID]) {
-                sh """
-                    ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} '
-                        docker pull ${DOCKER_IMAGE}:latest
-                        docker stop vnlawbot_c || true
-                        docker rm vnlawbot_c || true
-                        docker run -d \\
-                            -p 2824:8000 \\
-                            --name vnlawbot_c \\
-                            -e LANGSMITH_API_KEY=${LANGSMITH_KEY} \\
-                            -e GEMINI_API_KEY=${GEMINI_KEY} \\
-                            ${DOCKER_IMAGE}:latest
-                    '
-                """
+        stage('Deploy on VPS') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'langsmith-api-key', variable: 'LANGSMITH_KEY'),
+                    string(credentialsId: 'gemini-api-key', variable: 'GEMINI_KEY')
+                ]) {
+                    sshagent([VPS_CREDENTIALS_ID]) {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} '
+                                docker pull ${DOCKER_IMAGE}:latest
+                                docker stop vnlawbot_c || true
+                                docker rm vnlawbot_c || true
+                                docker run -d \\
+                                    -p 2824:8000 \\
+                                    --name vnlawbot_c \\
+                                    -e LANGSMITH_API_KEY=${LANGSMITH_KEY} \\
+                                    -e GEMINI_API_KEY=${GEMINI_KEY} \\
+                                    ${DOCKER_IMAGE}:latest
+                            '
+                        """
+                    }
+                }
             }
         }
-    }
-}
     }
 }
