@@ -5,7 +5,7 @@ environment {
     DOCKER_IMAGE = 'hoanglvuitm/vnlawbot'
     DOCKER_CREDENTIALS_ID = 'docker-hub'
     VPS_CREDENTIALS_ID = 'ec2_ssh_key'     // Đã tạo ở bước 3
-    VPS_HOST = '3.123.456.789'             // IP EC2
+    VPS_HOST = '34.201.144.1'             // IP EC2
     VPS_USER = 'ubuntu'
 }
 
