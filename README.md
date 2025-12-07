@@ -6,213 +6,101 @@ Chatbot hỏi đáp về luật hình sự tại Việt Nam sử dụng RAG (Ret
 
 ![Demo](demo/demo.png)
 
-
 - **Frontend**: [https://vn-law-bot-hoanglvuits-projects.vercel.app](https://vn-law-bot-hoanglvuits-projects.vercel.app)
 - **Backend API**: [https://vnlawbot.hoanglvuit.id.vn](https://vnlawbot.hoanglvuit.id.vn)
 
 ## 🏗️ Kiến trúc hệ thống
 
 ### RAG Model (AI Core)
-- **Framework**: LangChain
+- **Framework**: LangChain + LangGraph
 - **Tài liệu**: Bộ luật hình sự Việt Nam 2015
-- **Embedding Model**: gemini-embedding-exp-03-07
-- **LLM Model**: gemini-2.0-flash. Lưu ý cần set lại rate limit & quota cho api_key. 
+- **Embedding Model**: `gemini-embedding-exp-03-07`
+- **LLM Model**: `gemini-2.0-flash`
+- **Vector Database**: ChromaDB
 
 ### Technology Stack
 - **Backend**: FastAPI
 - **Frontend**: Tailwind CSS + Vite
+- **Deployment**: 
+  - Frontend: Vercel (Free tier)
+  - Backend: VPS với Docker + Nginx + SSL
 
-## 🌐 Deployment Journey
+## 📊 Tạo Vector Store (Database)
+
+Vector store là cơ sở dữ liệu chứa embeddings của các điều luật, được sử dụng để tìm kiếm ngữ cảnh liên quan khi người dùng đặt câu hỏi.
+
+### Bước 1: Xử lý dữ liệu (Data Processing)
+
+File `backend/data/processing.py` thực hiện:
+- Đọc PDF từ `backend/data/raw/law_vn.pdf`
+- Loại bỏ tiêu đề và các chương không cần thiết
+- Chunking theo từng điều luật (pattern: `Điều \d+\.`)
+- Lưu kết quả vào `backend/data/processed/chuking.json`
+
+```bash
+cd backend/data
+python processing.py
+```
+
+### Bước 2: Tạo Embeddings và Vector Store
+
+File `backend/embedding.py` thực hiện:
+- Load chunks từ `chuking.json`
+- Sử dụng Gemini Embedding model để tạo vector embeddings
+- Lưu vào ChromaDB tại `backend/database/` (hoặc `backend/vector_store/`)
+
+```bash
+cd backend
+python embedding.py
+```
+
+**Lưu ý**: 
+- Script có rate limiting (sleep 59s sau mỗi 10 documents) để tránh vượt quota API
+- Cần set `GEMINI_API_KEY` và `LANGSMITH_API_KEY` trong `.env`
+- Vector store sẽ được persist và sử dụng trong RAG pipeline
+
+### Cấu trúc thư mục
+
+```
+backend/
+├── data/
+│   ├── raw/
+│   │   └── law_vn.pdf          # PDF gốc
+│   ├── processed/
+│   │   └── chuking.json        # Chunks sau khi xử lý
+│   └── processing.py           # Script xử lý PDF
+├── embedding.py                 # Script tạo embeddings
+├── database/                    # ChromaDB vector store (sau khi chạy embedding.py)
+└── app/
+    └── rag.py                   # RAG pipeline sử dụng vector store
+```
+
+## 🚀 Deployment
 
 ### Frontend Deployment
 - **Platform**: Vercel (Free tier)
 - **URL**: https://vn-law-bot-hoanglvuits-projects.vercel.app
 
-### Backend Deployment Evolution
+### Backend Deployment
 
-#### 1. Railway (Initial Attempt)
-- **Platform**: Railway free-tier
-- **Issue**: Auto sleep - service không hoạt động liên tục
+#### VPS Setup với Docker + Nginx + SSL
 
-#### 2. VPS Solution
-- **Platform**: VPS với Docker
-- **Public IP**: 31.97.51.25
-- **Port Mapping**: 2824:8000 (2824 là cổng VPS nhận request, 8000 là cổng container)
-- **Access**: http://31.97.51.25:2824
+**Yêu cầu:**
+- VPS với Ubuntu 22.04+
+- Domain đã trỏ về IP VPS
+- Docker và Docker Compose đã cài đặt
 
-### 🚨 Mixed Content Problem & Solution
+**Các bước triển khai:**
 
-#### Vấn đề phát sinh:
-- Frontend được deploy trên Vercel tạo ra HTTPS URL: `https://vn-law-bot-hoanglvuits-projects.vercel.app`
-- Backend chỉ có HTTP: `http://31.97.51.25:2824`
-- **Mixed Content Error**: Frontend HTTPS không thể fetch data từ backend HTTP
-
-#### Giải pháp thực hiện:
-
-**Bước 1: Mua domain**
-- Domain: `hoanglvuit.id.vn` (miễn phí)
-
-**Bước 2: Cấu hình subdomain**
-- Tạo DNS record: `vnlawbot.hoanglvuit.id.vn` → `31.97.51.25`
-
-**Bước 3: SSL Setup với Nginx**
-- Sử dụng Nginx làm reverse proxy
-- Cung cấp chứng chỉ SSL cho domain `vnlawbot.hoanglvuit.id.vn`
-- Enable HTTPS access
-
-**Kết quả:**
-- Backend có thể truy cập qua HTTPS: `https://vnlawbot.hoanglvuit.id.vn`
-- Frontend có thể fetch data thành công
-
-**Lưu ý phải cấu hình CORSMiddleware trong FastAPI cho phép domain Vercel**
-
-## 🚀 CI/CD với Jenkins
-
-### Tại sao chọn Jenkins?
-
-- Tự động quy trình deploy 
-- Nhưng không muốn mỗi lần push code là auto deploy -> không dùng GitHub webhook, chỉ deploy khi cần thiết bằng cách nhấn "Build Now"
-
-### Jenkins Setup Process
-
-#### 1. Local Jenkins Container
-```bash
-# Chạy Jenkins container với Docker daemon mount
-# Port: localhost:8080
-```
-
-#### 2. Jenkins Configuration
-- **Plugins**: Cài đặt các plugin cần thiết
-- **Credentials Setup**:
-  - `docker-hub`: Push image lên Docker Hub
-  - `vps-hoanglv`: SSH key để đăng nhập VPS
-  - `langsmith-api-key`: API key cho LangSmith
-  - `gemini-api-key`: API key cho Gemini
-
-#### 3. Automated Pipeline
-**Jenkinsfile thực hiện:**
-1. Clone repo từ GitHub
-2. CD vào backend directory
-3. Build Docker image
-4. Push image lên Docker Hub
-5. SSH vào VPS
-6. Pull image mới
-7. Run container mới
-
-**Workflow:**
-```
-Manual "Build Now" → Jenkins đọc Jenkinsfile → 
-Clone repo → Build & Push Image → Deploy to VPS
-```
-
-## 🎯 Key Learnings
-
-### Problem Solving Process
-1. **Railway Limitation**: Free tier auto sleep → Chuyển sang VPS
-2. **Mixed Content Issue**: HTTP/HTTPS conflict → Domain + SSL solution
-3. **Manual Deployment**: Tốn thời gian → Jenkins automation
-
-### Deployment Strategy
-- **Frontend**: Static deployment trên Vercel (free, reliable)
-- **Backend**: VPS với Docker (full control, always-on)
-- **Domain**: Free domain với SSL certificate
-- **CI/CD**: Jenkins cho controlled deployment
-
-## 🛠️ Technical Architecture
-
-```
-User → Frontend (Vercel HTTPS) → Backend (VPS + Nginx SSL) → 
-RAG Model (LangChain + Gemini) → Vietnam Criminal Law Database
-```
-
-# 🧩 VN-LawBot Backend Deployment Guide (EC2 + Docker + Nginx + SSL)
-
-**Cập nhật:** 17-10-2025  
-
----
-
-## 1️⃣ Khởi tạo EC2 instance
-
-- **Loại máy:** `t2.micro` (free tier)
-- **OS:** Ubuntu 22.04 (hoặc mới hơn)
-- **Key Pair:** tạo `lawbot.pem` để SSH
-- **Security Group:** mở inbound rules:
-  - TCP `80` (HTTP)
-  - TCP `443` (HTTPS)
-  - TCP `2824` (Backend service)
-
----
-
-## 2️⃣ Cài Docker và Git
-
-SSH vào máy:
-
-```bash
-ssh -i lawbot.pem ubuntu@<EC2_PUBLIC_IP>
-```
-
-Cài Docker:
-
-```bash
-sudo apt update -y
-sudo apt install docker.io git -y
-sudo systemctl enable docker
-sudo systemctl start docker
-```
-
----
-
-## 3️⃣ Clone source & Build backend (FastAPI)
-
+1. **Clone repository và build image:**
 ```bash
 git clone https://github.com/hoanglvuit/VN-LawBot.git
-cd ~/VN-LawBot/backend
-```
-
-Build image:
-
-```bash
+cd VN-LawBot/backend
 docker build -t hoanglvuitm/vnlawbot:latest .
 ```
 
-Chạy backend container (kèm ENV key):
-
+2. **Cấp chứng chỉ SSL (Let's Encrypt):**
 ```bash
-docker run -d \
-  -p 2824:8000 \
-  --name vnlawbot \
-  -e LANGSMITH_API_KEY="lsv2_..." \
-  -e GEMINI_API_KEY="AIza..." \
-  hoanglvuitm/vnlawbot:latest
-```
-
-Kiểm tra log:
-
-```bash
-docker logs -f vnlawbot
-```
-
-Nếu thấy:
-
-```
-Uvicorn running on http://0.0.0.0:8000
-```
-
-→ Backend đã chạy thành công ✅
-
----
-
-## 4️⃣ Cấp chứng chỉ SSL (chỉ cần làm 1 lần)
-
-Trỏ subdomain `vnlawbot.hoanglvuit.id.vn` về IP public của EC2.
-
-Kiểm tra DNS qua [dnschecker.org](https://dnschecker.org).
-
-Sau đó:
-
-```bash
-cd ~
-mkdir -p certbot
 docker run -it --rm \
   -v $(pwd)/certbot:/etc/letsencrypt \
   -p 80:80 \
@@ -220,29 +108,9 @@ docker run -it --rm \
   -d vnlawbot.hoanglvuit.id.vn
 ```
 
-Khi thấy:
+3. **Cấu hình Nginx Reverse Proxy:**
 
-```
-Successfully received certificate.
-Certificate is saved at: /etc/letsencrypt/live/vnlawbot.hoanglvuit.id.vn/fullchain.pem
-Key is saved at:         /etc/letsencrypt/live/vnlawbot.hoanglvuit.id.vn/privkey.pem
-```
-
-→ SSL ok 🎉
-
----
-
-## 5️⃣ Cấu hình Nginx Reverse Proxy
-
-Tạo thư mục:
-
-```bash
-mkdir -p ~/nginx/conf.d
-cd ~/nginx
-```
-
-### 🔧 File: `~/nginx/conf.d/default.conf`
-
+Tạo file `~/nginx/conf.d/default.conf`:
 ```nginx
 # Redirect HTTP → HTTPS
 server {
@@ -267,12 +135,9 @@ server {
 }
 ```
 
----
+4. **Docker Compose:**
 
-## 6️⃣ Sử dụng docker-compose để quản lý toàn bộ
-
-### 🧱 File: `~/nginx/docker-compose.yml`
-
+File `~/nginx/docker-compose.yml`:
 ```yaml
 version: '3.8'
 
@@ -301,39 +166,64 @@ services:
     restart: always
 ```
 
-Chạy tất cả:
-
+5. **Chạy services:**
 ```bash
 cd ~/nginx
 sudo docker compose up -d
 ```
 
+## 🔄 CI/CD với Jenkins
+
+### Setup Jenkins
+
+Jenkins được sử dụng để tự động hóa quá trình deploy khi cần thiết (manual trigger, không dùng webhook).
+
+**Jenkinsfile thực hiện:**
+1. Clone repo từ GitHub
+2. Build Docker image
+3. Push image lên Docker Hub
+4. SSH vào VPS
+5. Pull image mới và restart container
+
+**Workflow:**
+```
+Manual "Build Now" → Jenkins đọc Jenkinsfile → 
+Clone repo → Build & Push Image → Deploy to VPS
+```
+
+**Credentials cần thiết:**
+- `docker-hub`: Push image lên Docker Hub
+- `vps-hoanglv`: SSH key để đăng nhập VPS
+- `langsmith-api-key`: API key cho LangSmith
+- `gemini-api-key`: API key cho Gemini
+
+## 🛠️ Technical Architecture
+
+```
+User → Frontend (Vercel HTTPS) 
+    → Backend (VPS + Nginx SSL) 
+    → RAG Model (LangChain + Gemini) 
+    → Vector Store (ChromaDB) 
+    → Vietnam Criminal Law Database
+```
+
+## 📝 Environment Variables
+
+Tạo file `.env` trong thư mục `backend/`:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+LANGSMITH_API_KEY=your_langsmith_api_key
+```
+
+## 🎯 Key Features
+
+- **RAG Pipeline**: Retrieval-Augmented Generation với LangGraph
+- **Semantic Search**: Tìm kiếm ngữ cảnh liên quan bằng vector embeddings
+- **Vietnamese Law Database**: Hỗ trợ tra cứu Bộ luật Hình sự Việt Nam 2015
+- **HTTPS Support**: SSL certificate với Let's Encrypt
+- **CI/CD**: Automated deployment với Jenkins
+
 ---
-
-## 7️⃣ Kiểm tra
-
-Truy cập:
-
-👉 **https://vnlawbot.hoanglvuit.id.vn**
-
-Nếu phản hồi `200 OK` → thành công ✅
-
-Kiểm tra container:
-
-```bash
-docker ps
-```
-
-Kết quả mong muốn:
-
-```
-nginx_proxy   nginx:latest
-vnlawbot      hoanglvuitm/vnlawbot:latest
-```
-
----
-
-
-
 
 *Dự án được phát triển nhằm mục đích học tập và hỗ trợ tra cứu luật hình sự Việt Nam.*
