@@ -1,6 +1,6 @@
 # Vietnam Criminal Law Chatbot
 
-Chatbot hỏi đáp về luật hình sự tại Việt Nam sử dụng RAG (Retrieval-Augmented Generation) model.
+Chatbot hỏi đáp về luật hình sự tại Việt Nam sử dụng RAG (Retrieval-Augmented Generation) model. Hãy mô tả tình huống chatbot sẽ đánh giá xem tình huống của bạn có vi phạm luật hình sự Việt Nam không (dựa trên bộ luật hình sự 2015)
 
 ## 🚀 Demo
 
