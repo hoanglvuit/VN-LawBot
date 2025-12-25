@@ -32,10 +32,23 @@ class State(TypedDict):
     answer: str
 
 
-# Define application steps
-def retrieve(state: State):
-    retrieved_docs = vector_store.similarity_search(state["question"])
-    return {"context": retrieved_docs}
+def word_overlap_score(question: str, doc: Document) -> int:
+    """Tính số từ chung giữa câu hỏi và nội dung document"""
+    question_words = set(question.lower().split())
+    doc_words = set(doc.page_content.lower().split())
+    return len(question_words & doc_words)
+
+def retrieve(state: dict):
+    # Bước 1: Lấy top 10 document từ vector store
+    retrieved_docs: List[Document] = vector_store.similarity_search(state["question"], k=10)
+    
+    # Bước 2: Tính điểm overlap cho từng document
+    scored_docs = [(doc, word_overlap_score(state["question"], doc)) for doc in retrieved_docs]
+    
+    # Bước 3: Sắp xếp giảm dần theo điểm overlap và lấy top 3
+    top3_docs = [doc for doc, score in sorted(scored_docs, key=lambda x: x[1], reverse=True)[:3]]
+    
+    return {"context": top3_docs}
 
 
 def generate(state: State):
